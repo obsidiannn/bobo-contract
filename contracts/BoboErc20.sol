@@ -16,7 +16,6 @@ contract RmcErc20 is ERC20, Ownable {
     // 设置币种汇率 一个外币需要多少个 rmc
     mapping(address => uint256) public _supported_token;
     uint256 public _limit;
-
     string[] public applyRecords;
     /**
     name: 货币名称
