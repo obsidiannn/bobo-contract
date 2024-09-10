@@ -3,7 +3,6 @@ pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 // 质押记录type
@@ -209,9 +208,9 @@ contract BonusContract is Ownable {
         BonusPoolItem memory bonusPoolItem = _bonus_pool[msg.sender];
         require(bonusPoolItem.lastStamp >0, "no bonus");
         require(bonusPoolItem.amount >0, "no enough bonus");
-        require(IERC20(bonusPoolItem.tokenId).transferFrom(address(this), msg.sender, bonusPoolItem.amount), "bonus draw failed");
         _bonus_pool[msg.sender].amount = 0;
         _bonus_pool[msg.sender].lastStamp = block.timestamp;
+        require(IERC20(bonusPoolItem.tokenId).transferFrom(address(this), msg.sender, bonusPoolItem.amount), "bonus draw failed");
     }
 
 }
