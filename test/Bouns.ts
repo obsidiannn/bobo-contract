@@ -11,7 +11,7 @@ describe('bobo bouns', () => {
 
     async function deployBoboToken() {
         const BoboErc20 = await hre.ethers.getContractFactory("BoboToken");
-        const instance = await BoboErc20.deploy();
+        const instance = await BoboErc20.deploy("Bobo","BOT");
         return { instance };
     }
 

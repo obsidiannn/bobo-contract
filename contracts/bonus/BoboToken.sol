@@ -5,9 +5,9 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract BoboToken is ERC20 {
-    constructor() ERC20("BoboToken", "BOBO") {}
+    constructor(string memory name,string memory symbol) ERC20(name, symbol) {}
 
     function mint() public {
-        _mint(msg.sender, 10000 * (10 ** decimals()));
+        _mint(msg.sender, 10000 );
     }
 }

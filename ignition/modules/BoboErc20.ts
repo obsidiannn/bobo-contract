@@ -1,8 +1,8 @@
 import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
 
 
-const BoboErc20Module = buildModule("BoboErc20Module", (m) => {
-  const instance = m.contract("BoboErc20", ["BoboErc20 Name", "BoboErc20"]);
+const BoboErc20Module = buildModule("BoboTokenModule", (m) => {
+  const instance = m.contract("BoboToken", ["BoboToken", "BOT"]);
   return { instance };
 });
 

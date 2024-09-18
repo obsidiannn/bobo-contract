@@ -5,7 +5,7 @@ const config: HardhatUserConfig = {
   solidity: "0.8.24",
   networks: {
     local: {
-      url: 'http://127.0.0.1:7454',
+      url: 'http://127.0.0.1:7545',
     }
   }
 };
