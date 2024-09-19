@@ -36,9 +36,9 @@ describe('bobo bouns', () => {
         const r = await tokenResult.instance.balanceOf(user1.address)
         console.log('user1 token = ', r);
 
-        await tokenResult.instance.approve(bounsAddress, 100n)
-        await bouns.instance.connect(user1).deposit(100n, user1.address)
-
+        await tokenResult.instance.approve(bounsAddress, 9n)
+        await bouns.instance.connect(user1).deposit(9n, user1.address)
+        // await bouns.instance.connect(user1).mint(100n, user1.address)
 
     })
 
