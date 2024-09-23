@@ -11,6 +11,8 @@
 ### deploy 
  
 * npx hardhat ignition deploy ./ignition/modules/Lock.ts --network ganache
+* npx hardhat ignition deploy ./ignition/modules/BoboErc20.ts --network bobo
+
 * 如果有改动二次构建的话，要么删文件夹，要么
 ```
 npx hardhat ignition deploy ignition/modules/Fcm.ts --network bsc --verify --deployment-id second-deploy
