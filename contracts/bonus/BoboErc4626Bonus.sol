@@ -1,83 +1,83 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract BoboErc4646Bonus is ERC4626 {
-    address payable public _owner;
+contract BoboErc4626Bonus is ERC4626, Ownable {
+    address private _owner;
     uint256 public entryFeeBasicPoints;
-    using Math for uint256;
-    uint256 private constant _BASIS_POINT_SCALE = 1e4;
 
-    constructor(
-        address _assetAddress,
-        uint256 _basicPoints
-    ) ERC4626(IERC20(_assetAddress)) ERC20("Bobo token", "vBOBO") {
+    uint256 public accumulatedFees;
+    uint256 public interestRate; // 利息率（基点）
+
+    using Math for uint256;
+
+    uint256 private constant _BASIS_POINT_SCALE = 1e4;
+    uint256 public constant MAX_FEE_BASIS_POINTS = 1000; // 最大10%费率
+
+    event FeeCollected(address recipient, uint256 amount);
+    event InterestRateUpdated(uint256 newRate);
+    event EmergencyPaused(bool isPaused);
+
+    constructor(address _assetAddress, uint256 _basicPoints)
+        ERC4626(IERC20(_assetAddress))
+        ERC20("Bobo token", "vBOBO")
+        Ownable(msg.sender)
+    {
+        require(_basicPoints <= MAX_FEE_BASIS_POINTS, "Fee too high");
         _owner = payable(msg.sender);
         entryFeeBasicPoints = _basicPoints;
+    }
+
+    // 新增管理功能
+    function setInterestRate(uint256 newRate) external onlyOwner {
+        require(newRate <= MAX_FEE_BASIS_POINTS, "Rate too high");
+        interestRate = newRate;
+        emit InterestRateUpdated(newRate);
+    }
+
+    function collectFees() external onlyOwner {
+        uint256 amount = accumulatedFees;
+        accumulatedFees = 0;
+        SafeERC20.safeTransfer(IERC20(asset()), _owner, amount);
+        emit FeeCollected(_owner, amount);
     }
 
     // === Overrides ===
 
     /// @dev Preview taking an entry fee on deposit. See {IERC4626-previewDeposit}.
-    function previewDeposit(
-        uint256 assets
-    ) public view virtual override returns (uint256) {
+    function previewDeposit(uint256 assets) public view virtual override returns (uint256) {
         uint256 fee = _feeOnTotal(assets, _entryFeeBasisPoints());
         return super.previewDeposit(assets - fee);
     }
 
     /// @dev Preview adding an entry fee on mint. See {IERC4626-previewMint}.
-    function previewMint(
-        uint256 shares
-    ) public view virtual override returns (uint256) {
+    function previewMint(uint256 shares) public view virtual override returns (uint256) {
         uint256 assets = super.previewMint(shares);
         return assets + _feeOnRaw(assets, _entryFeeBasisPoints());
     }
 
     /// @dev Preview adding an exit fee on withdraw. See {IERC4626-previewWithdraw}.
-    function previewWithdraw(
-        uint256 assets
-    ) public view virtual override returns (uint256) {
+    function previewWithdraw(uint256 assets) public view virtual override returns (uint256) {
         uint256 fee = _feeOnRaw(assets, _exitFeeBasisPoints());
         return super.previewWithdraw(assets + fee);
     }
 
     /// @dev Preview taking an exit fee on redeem. See {IERC4626-previewRedeem}.
-    function previewRedeem(
-        uint256 shares
-    ) public view virtual override returns (uint256) {
+    function previewRedeem(uint256 shares) public view virtual override returns (uint256) {
         uint256 assets = super.previewRedeem(shares);
         return assets - _feeOnTotal(assets, _exitFeeBasisPoints());
     }
 
-    /// @dev Send entry fee to {_entryFeeRecipient}. See {IERC4626-_deposit}.
-    function _deposit(
-        address caller,
-        address receiver,
-        uint256 assets,
-        uint256 shares
-    ) internal virtual override {
-        uint256 fee = _feeOnTotal(assets, _entryFeeBasisPoints());
-        address recipient = _entryFeeRecipient();
-
-        super._deposit(caller, receiver, assets, shares);
-
-        if (fee > 0 && recipient != address(this)) {
-            SafeERC20.safeTransfer(IERC20(asset()), recipient, fee);
-        }
-    }
-
     /// @dev Send exit fee to {_exitFeeRecipient}. See {IERC4626-_deposit}.
-    function _withdraw(
-        address caller,
-        address receiver,
-        address owner,
-        uint256 assets,
-        uint256 shares
-    ) internal virtual override {
+    function _withdraw(address caller, address receiver, address owner, uint256 assets, uint256 shares)
+        internal
+        virtual
+        override
+    {
         uint256 fee = _feeOnRaw(assets, _exitFeeBasisPoints());
         address recipient = _exitFeeRecipient();
 
@@ -110,37 +110,20 @@ contract BoboErc4646Bonus is ERC4626 {
 
     /// @dev Calculates the fees that should be added to an amount `assets` that does not already include fees.
     /// Used in {IERC4626-mint} and {IERC4626-withdraw} operations.
-    function _feeOnRaw(
-        uint256 assets,
-        uint256 feeBasisPoints
-    ) private pure returns (uint256) {
-        return
-            assets.mulDiv(
-                feeBasisPoints,
-                _BASIS_POINT_SCALE,
-                Math.Rounding.Ceil
-            );
+    function _feeOnRaw(uint256 assets, uint256 feeBasisPoints) private pure returns (uint256) {
+        return assets.mulDiv(feeBasisPoints, _BASIS_POINT_SCALE, Math.Rounding.Ceil);
     }
 
     /// @dev Calculates the fee part of an amount `assets` that already includes fees.
     /// Used in {IERC4626-deposit} and {IERC4626-redeem} operations.
-    function _feeOnTotal(
-        uint256 assets,
-        uint256 feeBasisPoints
-    ) private pure returns (uint256) {
-        return
-            assets.mulDiv(
-                feeBasisPoints,
-                feeBasisPoints + _BASIS_POINT_SCALE,
-                Math.Rounding.Ceil
-            );
+    function _feeOnTotal(uint256 assets, uint256 feeBasisPoints) private pure returns (uint256) {
+        return assets.mulDiv(feeBasisPoints, feeBasisPoints + _BASIS_POINT_SCALE, Math.Rounding.Ceil);
     }
 
-    /** @dev See {IERC4626-deposit}. */
-    function deposit(
-        uint256 assets,
-        address receiver
-    ) public virtual override returns (uint256) {
+    /**
+     * @dev See {IERC4626-deposit}.
+     */
+    function deposit(uint256 assets, address receiver) public virtual override returns (uint256) {
         uint256 maxAssets = maxDeposit(receiver);
         if (assets > maxAssets) {
             revert ERC4626ExceededMaxDeposit(receiver, assets, maxAssets);
@@ -153,15 +136,13 @@ contract BoboErc4646Bonus is ERC4626 {
         return shares;
     }
 
-    /** @dev See {IERC4626-mint}.
+    /**
+     * @dev See {IERC4626-mint}.
      *
      * As opposed to {deposit}, minting is allowed even if the vault is in a state where the price of a share is zero.
      * In this case, the shares will be minted without requiring any assets to be deposited.
      */
-    function mint(
-        uint256 shares,
-        address receiver
-    ) public virtual override returns (uint256) {
+    function mint(uint256 shares, address receiver) public virtual override returns (uint256) {
         uint256 maxShares = maxMint(receiver);
         if (shares > maxShares) {
             revert ERC4626ExceededMaxMint(receiver, shares, maxShares);
@@ -173,12 +154,10 @@ contract BoboErc4646Bonus is ERC4626 {
         return assets;
     }
 
-    /** @dev See {IERC4626-withdraw}. */
-    function withdraw(
-        uint256 assets,
-        address receiver,
-        address owner
-    ) public virtual override returns (uint256) {
+    /**
+     * @dev See {IERC4626-withdraw}.
+     */
+    function withdraw(uint256 assets, address receiver, address owner) public virtual override returns (uint256) {
         uint256 maxAssets = maxWithdraw(owner);
         if (assets > maxAssets) {
             revert ERC4626ExceededMaxWithdraw(owner, assets, maxAssets);
@@ -191,12 +170,10 @@ contract BoboErc4646Bonus is ERC4626 {
         return shares;
     }
 
-    /** @dev See {IERC4626-redeem}. */
-    function redeem(
-        uint256 shares,
-        address receiver,
-        address owner
-    ) public virtual override returns (uint256) {
+    /**
+     * @dev See {IERC4626-redeem}.
+     */
+    function redeem(uint256 shares, address receiver, address owner) public virtual override returns (uint256) {
         uint256 maxShares = maxRedeem(owner);
         if (shares > maxShares) {
             revert ERC4626ExceededMaxRedeem(owner, shares, maxShares);
@@ -216,12 +193,16 @@ contract BoboErc4646Bonus is ERC4626 {
     function beforeWithdraw(uint256 assets, uint256 shares) internal virtual {}
 
     function afterDeposit(uint256 assets) internal virtual {
-        uint256 interest = assets / 10;
-        SafeERC20.safeTransferFrom(
-            IERC20(asset()),
-            _owner,
-            address(this),
-            interest
-        );
+        uint256 interest = assets.mulDiv(interestRate, _BASIS_POINT_SCALE, Math.Rounding.Ceil);
+
+        SafeERC20.safeTransferFrom(IERC20(asset()), _owner, address(this), interest);
+    }
+
+    /// @dev Send entry fee to {_entryFeeRecipient}. See {IERC4626-_deposit}.
+    function _deposit(address caller, address receiver, uint256 assets, uint256 shares) internal virtual override {
+        uint256 fee = _feeOnTotal(assets, _entryFeeBasisPoints());
+        accumulatedFees += fee;
+
+        super._deposit(caller, receiver, assets, shares);
     }
 }

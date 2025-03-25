@@ -11,12 +11,12 @@
 ### deploy 
  
 * npx hardhat ignition deploy ./ignition/modules/Lock.ts --network ganache
-* npx hardhat ignition deploy ./ignition/modules/BoboErc20.ts --network bobo
+* npx hardhat ignition deploy ./ignition/modules/BoboToken.ts --network polygonAmoy
+* npx hardhat ignition deploy ./ignition/modules/BoboToken.ts --network local
 
 * 如果有改动二次构建的话，要么删文件夹，要么
 ```
-npx hardhat ignition deploy ignition/modules/Fcm.ts --network bsc --verify --deployment-id second-deploy
-Ï
+npx hardhat ignition deploy ./ignition/modules/BoboToken.ts  --network polygonAmoy --verify --deployment-id second-deploy
 ```
 
 ### run test 
@@ -35,3 +35,6 @@ npx hardhat ignition deploy ignition/modules/Fcm.ts --network bsc --verify --dep
 	* yarn create next-app --typescript
 
 * 需要看 [metamask api](https://docs.metamask.io/wallet/how-to/connect/)
+---
+
+0x55c4106A0926aBaBfceD447bE3ECfDd28285249E
